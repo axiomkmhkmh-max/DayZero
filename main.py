@@ -462,6 +462,7 @@ from logs import setup_logging
 from middleware import GameMiddleware
 from redis_service import redis_service
 
+import h_admin
 import h_alliance
 import h_biz
 import h_casino
@@ -540,17 +541,25 @@ async def main() -> None:
     setup_logging(config.LOG_LEVEL)
     await redis_service.connect(config.REDIS_URL)
     mongo = await init_db()
+    n_bans = await h_admin.sync_bans()                  # بن‌شده‌ها از Mongo → Redis
+    n_admins = await h_admin.load_admins()              # ادمین‌های اصلی + اضافه‌شده
+    if n_admins == 0:
+        log.warning("هیچ ادمینی تعریف نشده! آیدی خودت رو با /myid بگیر و تو ADMIN_IDS بذار.")
 
     bot = Bot(config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     bot.session.middleware(_english_digits)
     dp = Dispatcher(storage=RedisStorage(redis_service.r))
+
+    ban_mw = h_admin.BanMiddleware()                    # باید قبل از GameMiddleware باشه
+    dp.message.outer_middleware(ban_mw)
+    dp.callback_query.outer_middleware(ban_mw)
 
     mw = GameMiddleware()
     dp.message.outer_middleware(mw)
     dp.callback_query.outer_middleware(mw)
 
     # ترتیب مهمه: حالت‌های FSM (گرفتن هدف/اسم) قبل از دستورهای متنی
-    for r in (h_target.router, h_alliance.router, h_menu.router, h_life.router, h_home.router, h_biz.router, h_market.router,
+    for r in (h_admin.router, h_target.router, h_alliance.router, h_menu.router, h_life.router, h_home.router, h_biz.router, h_market.router,
               h_casino.router, h_fight.router, h_social.router, duel.router, h_group.router):
         dp.include_router(r)
 
@@ -560,8 +569,9 @@ async def main() -> None:
     logger_task = asyncio.create_task(gamelog.worker())
     try:
         await bot.set_my_commands(COMMANDS)
+        await h_admin.publish_commands(bot, COMMANDS)    # منوی دستورهای ادمین (فقط برای خود ادمین‌ها)
         me = await bot.get_me()
-        log.info("started", username=me.username)
+        log.info("started", username=me.username, admins=n_admins, bans=n_bans)
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
         sweeper.cancel()

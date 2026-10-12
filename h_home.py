@@ -157,10 +157,31 @@ async def render_power(u: User):
         timer = "🏠 ظرفیت خونه پره؛ خونه رو ارتقا بده."
     else:
         timer = "👶 آماده‌ای! می‌تونی بچه‌دار بشی." if w <= 0 else f"⏳ بچه‌ی بعدی: {dur(w)} دیگه"
+    base = rules.base_income(u.businesses)                       # درآمد کاسبی هر ۶ ساعت (بدون تقویتی)
+
+    def _gain(cfg: dict) -> int:                                  # سود تقریبی تقویتی تو مدتش
+        return int(base * cfg["boost"] * cfg["boost_hours"] * 3600 / C.CYCLE_SECONDS)
+
+    def _active(until) -> str:
+        return f" — ✅ فعاله: {dur(left(until))} دیگه" if left(until) > 0 else ""
+    if base > 0:
+        mine = (f"\n\n📈 <b>برای کسب‌وکار فعلی تو</b> (هر ۶ ساعت {fa(base)} دلار):\n"
+                f"🍌 موز تو {fa(C.BANANA['boost_hours'])} ساعت حدود <b>+{fa(_gain(C.BANANA))}</b> دلار بیشتر درمیاره (خرجش {fa(C.BANANA['price'])})\n"
+                f"🧪 معجون تو {fa(C.POTION['boost_hours'])} ساعت حدود <b>+{fa(_gain(C.POTION))}</b> دلار بیشتر درمیاره (خرجش {fa(C.POTION['price'])})")
+    else:
+        mine = "\n\n🏪 هنوز کسب‌وکاری نداری؛ تقویتی درآمد کاسبی فقط وقتی به دردت می‌خوره که کسب‌وکار داشته باشی."
     text = (f"💪 <b>قوای جنسی</b>\n\n👶 بچه‌ها: {fa(u.kids)}/{fa(cap)}\n{timer}\n\n"
-            f"هر {fa(C.CHILD_COOLDOWN_H)} ساعت می‌شه یه بچه ساخت.\n💬 دستور متنی: <code>بزن توش</code>\n"
-            f"🍌 موز: {fa(C.BANANA['cut_hours'])} ساعت از تایمر کم می‌کنه + {int(C.BANANA['boost'] * 100)}٪ درآمد کاسبی برای {fa(C.BANANA['boost_hours'])} ساعت\n"
-            f"🧪 معجون: تایمر رو صفر می‌کنه + {int(C.POTION['boost'] * 100)}٪ درآمد کاسبی برای {fa(C.POTION['boost_hours'])} ساعت")
+            f"هر {fa(C.CHILD_COOLDOWN_H)} ساعت می‌شه یه بچه ساخت.\n💬 دستور متنی: <code>بزن توش</code>\n\n"
+            f"🍌 <b>موز</b>{_active(u.banana_until)}\n"
+            f"• {fa(C.BANANA['cut_hours'])} ساعت از تایمر بچه‌دار شدن کم می‌کنه\n"
+            f"• تا {fa(C.BANANA['boost_hours'])} ساعت، پولِ کسب‌وکارهات {int(C.BANANA['boost'] * 100)}٪ بیشتر جمع می‌شه\n\n"
+            f"🧪 <b>معجون</b>{_active(u.potion_until)}\n"
+            f"• تایمر بچه‌دار شدن رو یکدفعه صفر می‌کنه\n"
+            f"• تا {fa(C.POTION['boost_hours'])} ساعت، پولِ کسب‌وکارهات {int(C.POTION['boost'] * 100)}٪ بیشتر جمع می‌شه (۱٫۵ برابر)\n\n"
+            f"ℹ️ <b>«درآمد کاسبی» یعنی چی؟</b> همون پولی که از 🏪 کسب‌وکارهات (منوی کاسبی) جمع می‌شه. "
+            f"فقط همون بیشتر می‌شه؛ پول کار، جیبی و چرخ تو شهر تغییر نمی‌کنه. "
+            f"موز و معجون و بچه‌های سیر با هم جمع می‌شن. دوباره بخری، {fa(C.POTION['boost_hours'])} ساعت به مدتش اضافه می‌شه (درصدش دو برابر نمی‌شه)."
+            f"{mine}")
     rows = []
     if u.house and u.kids < cap and w <= 0:
         rows.append([b("👶 بچه‌دار شو", "fam:child")])
