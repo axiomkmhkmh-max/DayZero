@@ -1,0 +1,6 @@
+aiogram>=3.27,<4
+motor==3.6.0
+beanie==1.27.0
+pydantic>=2.8,<3
+redis>=5.0
+structlog>=24.1
