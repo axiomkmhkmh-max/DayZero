@@ -65,6 +65,21 @@ class User(Document):
     businesses: dict[str, int] = Field(default_factory=dict)   # کلید کسب‌وکار → تعداد کارگر
     income_since: datetime = Field(default_factory=utcnow)     # درآمد کاسبی از این لحظه انباشته می‌شود
 
+    # سطح و ضدزورگیری
+    xp: int = 0                                    # سطح = از روی XP حساب می‌شه (rules.level_of)
+    antirob: bool = False                          # «ضدزورگیری»: قوی‌ترها (۵ سطح بالاتر) نمی‌تونن بهش دست بزنن
+
+    # بانک و وام (بانک امنه؛ هک/غارت بهش نمی‌رسه)
+    bank: int = 0
+    bank_level: int = 1
+    bank_at: Optional[datetime] = None             # سود تا این لحظه حساب شده
+    loan_principal: int = 0                        # مبلغی که گرفته
+    loan_total: int = 0                            # کل بدهی با بهره (۰ = وامی نداره)
+    loan_paid: int = 0
+    loan_daily: int = 0                            # قسط روزانه
+    loan_start: Optional[datetime] = None
+    loan_remind: int = 0                           # آخرین مرحله‌ی یادآوری که فرستاده شده
+
     # مبارزه
     shield_until: Optional[datetime] = None
     attack_ready_at: Optional[datetime] = None
@@ -83,7 +98,9 @@ class User(Document):
 
     # دیتای قدیمی/خراب: اگه جایی عدد اعشاری (مثل 1234.0 یا 99.5) یا رشته‌ی عددی تو دیتابیس نشسته باشه،
     # pydantic موقع لود کردن بازیکن خطا می‌داد و هر کاری روی اون بازیکن (از جمله انتقال پول) می‌ترکید.
-    @field_validator("cash", "vault", "invested", "bet", "shifts", "streak", "house", "kids", "mahr", mode="before")
+    @field_validator("cash", "vault", "invested", "bet", "shifts", "streak", "house", "kids", "mahr",
+                     "xp", "bank", "bank_level", "loan_principal", "loan_total", "loan_paid", "loan_daily", "loan_remind",
+                     mode="before")
     @classmethod
     def _to_int(cls, v):
         return _as_int(v)
@@ -98,7 +115,8 @@ class User(Document):
     class Settings:
         name = "users"
         indexes = [IndexModel([("username", ASCENDING)]), IndexModel([("alliance_id", ASCENDING)]),
-                   IndexModel([("last_seen", DESCENDING)])]
+                   IndexModel([("last_seen", DESCENDING)]),
+                   IndexModel([("loan_total", ASCENDING)])]
 
 
 class Alliance(Document):
